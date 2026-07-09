@@ -2,3 +2,7 @@
 /.env
 /.phpunit.cache/
 /storage/logs/*.log
+/storage/framework/rate-limit/
+/database/*.sqlite
+/database/*.sqlite-shm
+/database/*.sqlite-wal
