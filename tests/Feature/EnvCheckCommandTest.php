@@ -10,24 +10,41 @@ class EnvCheckCommandTest extends TestCase
 {
     public function test_env_check_command_outputs_valid(): void
     {
-        // Jalankan script CLI dan tangkap outputnya
-        $binary = dirname(__DIR__, 2) . '/intisari';
-        
-        // Kita perlu pastikan script intisari executable atau panggil via php
-        $output = [];
-        $exitCode = 0;
-        
-        // Use PHP to execute to avoid execution permission issues on Windows
-        exec('php ' . escapeshellarg($binary) . ' env:check', $output, $exitCode);
-        
-        $outputStr = implode("\n", $output);
-        
+        $binary  = dirname(__DIR__, 2) . '/intisari';
+        $dbPath  = dirname(__DIR__, 2) . '/database/api.sqlite';
+
+        // Inject env vars explicitly so the test is self-contained in CI (no .env needed).
+        // Use proc_open for cross-platform compatibility (KEY=val prefix fails on Windows).
+        $env = array_merge($_ENV, [
+            'APP_NAME'      => 'TestApp',
+            'APP_ENV'       => 'testing',
+            'APP_DEBUG'     => 'false',
+            'DB_CONNECTION' => 'sqlite',
+            'DB_DATABASE'   => $dbPath,
+        ]);
+
+        $process = proc_open(
+            ['php', $binary, 'env:check'],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+            dirname($binary),
+            $env
+        );
+
+        $this->assertIsResource($process, 'Failed to start intisari env:check process');
+
+        $stdout   = stream_get_contents($pipes[1]);
+        $stderr   = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exitCode = proc_close($process);
+
+        $outputStr = $stdout . $stderr;
+
         $this->assertStringContainsString('Validating environment variables...', $outputStr);
         $this->assertStringContainsString('[OK] APP_NAME', $outputStr);
         $this->assertStringContainsString('[OK] DB_CONNECTION', $outputStr);
         $this->assertStringContainsString('Environment is fully valid.', $outputStr);
-        
-        // Ensure exit code is 0
         $this->assertSame(0, $exitCode);
     }
 }
