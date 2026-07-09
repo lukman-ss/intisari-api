@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v0.1.1] — 2026-07-09
+
+### Fixed
+- Removed `database/api.sqlite` (SQLite runtime file) from version control.
+- Removed `storage/framework/rate-limit/*.json` (rate-limit cache files) from version control.
+- Updated `.gitignore` to exclude `/database/*.sqlite`, `/database/*.sqlite-shm`, `/database/*.sqlite-wal`, and `/storage/framework/rate-limit/` going forward.
+
+---
+
 ## [v0.1.0] — 2026-07-09
 
 ### Added
@@ -119,4 +128,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[v0.1.1]: https://github.com/lukman-ss/intisari-api/releases/tag/v0.1.1
 [v0.1.0]: https://github.com/lukman-ss/intisari-api/releases/tag/v0.1.0
