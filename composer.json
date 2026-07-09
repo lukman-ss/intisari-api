@@ -40,7 +40,7 @@
             "composer validate --strict",
             "@php scripts/check.php"
         ],
-        "docs:check": "@php -r \"foreach(['docs/openapi.yaml','README.md'] as $f)if(!file_exists($f)){echo 'Missing '.$f.PHP_EOL;exit(1);}echo 'Docs OK'.PHP_EOL;\""
+        "docs:check": "@php scripts/docs_check.php"
     },
     "config": {
         "optimize-autoloader": true,
