@@ -8,7 +8,7 @@ use PDO;
 
 class ConnectionFactory
 {
-    public static function make(array $config = null): PDO
+    public static function make(?array $config = null): PDO
     {
         if ($config === null) {
             $config = config('database', []);
