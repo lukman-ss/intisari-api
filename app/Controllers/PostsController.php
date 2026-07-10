@@ -28,9 +28,14 @@ class PostsController extends Controller
 
     public function index(Request $request): Response
     {
+        $viewerId = $this->authManager->id();
+        if (!$viewerId) {
+            return ApiResponse::error('Unauthenticated', 401);
+        }
+
         $query = $request->query();
-        $page = isset($query['page']) ? (int) $query['page'] : 1;
-        $perPage = isset($query['per_page']) ? (int) $query['per_page'] : 15;
+        $page = isset($query['page']) && is_scalar($query['page']) ? (int) $query['page'] : 1;
+        $perPage = isset($query['per_page']) && is_scalar($query['per_page']) ? (int) $query['per_page'] : 15;
         
         $filters = [];
         if (isset($query['status'])) {
@@ -46,7 +51,7 @@ class PostsController extends Controller
             $filters['direction'] = (string) $query['direction'];
         }
 
-        $result = $this->repository->paginate($page, $perPage, $filters);
+        $result = $this->repository->paginateForViewer($viewerId, $page, $perPage, $filters);
 
         return ApiResponse::paginated(PostResource::collection($result['items']), $result['meta'], 'Posts retrieved');
     }
@@ -60,7 +65,7 @@ class PostsController extends Controller
         }
 
         if ($post['status'] === 'draft' && (int) $post['user_id'] !== $this->authManager->id()) {
-            throw new \App\Exceptions\ForbiddenException();
+            throw new \App\Exceptions\NotFoundException('Post not found');
         }
 
         return ApiResponse::success(['post' => PostResource::make($post)], 'Post retrieved');
@@ -70,14 +75,15 @@ class PostsController extends Controller
     {
         $input = $this->input($request);
 
+        if (!array_key_exists('status', $input)) {
+            $input['status'] = 'draft';
+        }
+
         $validated = $this->validator->validate($input, [
             'title' => 'required|max:150',
             'content' => 'required',
+            'status' => 'required|in:draft,published',
         ]);
-
-        $status = isset($input['status']) && in_array($input['status'], ['draft', 'published']) 
-            ? $input['status'] 
-            : 'draft';
 
         $slug = Slugger::slug($validated['title']);
 
@@ -91,7 +97,7 @@ class PostsController extends Controller
             'title' => $validated['title'],
             'slug' => $slug,
             'content' => $validated['content'],
-            'status' => $status,
+            'status' => $validated['status'],
         ]);
 
         return ApiResponse::created(['post' => PostResource::make($post)], 'Post created');
@@ -106,6 +112,9 @@ class PostsController extends Controller
         }
 
         if ((int) $post['user_id'] !== $this->authManager->id()) {
+            if ($post['status'] === 'draft') {
+                throw new \App\Exceptions\NotFoundException('Post not found');
+            }
             throw new \App\Exceptions\ForbiddenException();
         }
 
@@ -113,14 +122,21 @@ class PostsController extends Controller
         $rules = [];
         
         if ($request->method() === 'PUT') {
+            if (!array_key_exists('status', $input)) {
+                $input['status'] = 'draft';
+            }
             $rules = [
                 'title' => 'required|max:150',
                 'content' => 'required',
+                'status' => 'required|in:draft,published',
             ];
         } else {
             // PATCH
             if (isset($input['title'])) {
                 $rules['title'] = 'max:150';
+            }
+            if (array_key_exists('status', $input)) {
+                $rules['status'] = 'in:draft,published';
             }
         }
 
@@ -144,7 +160,7 @@ class PostsController extends Controller
             $data['content'] = $input['content'];
         }
         
-        if (isset($input['status']) && in_array($input['status'], ['draft', 'published'])) {
+        if (isset($input['status'])) {
             $data['status'] = $input['status'];
         }
 
@@ -162,6 +178,9 @@ class PostsController extends Controller
         }
 
         if ((int) $post['user_id'] !== $this->authManager->id()) {
+            if ($post['status'] === 'draft') {
+                throw new \App\Exceptions\NotFoundException('Post not found');
+            }
             throw new \App\Exceptions\ForbiddenException();
         }
 

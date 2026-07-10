@@ -35,12 +35,16 @@ class ExceptionHandlerTest extends TestCase
         $this->assertSame('Endpoint not found', $body['message']);
         
         // Make sure errors is an empty array/object and debug is not exposed
-        $this->assertEmpty((array) $body['errors']);
         $this->assertArrayNotHasKey('debug', (array) $body['errors']);
     }
 
     public function test_api_500_with_debug_true_exposes_debug_info(): void
     {
+        putenv('APP_ENV=local');
+        putenv('APP_DEBUG=true');
+        
+        \App\Support\Logger::setRequestId('req-12345');
+
         /** @var \Intisari\Application $app */
         $app = require __DIR__ . '/../../bootstrap/app.php';
 
@@ -69,5 +73,63 @@ class ExceptionHandlerTest extends TestCase
         $this->assertArrayHasKey('debug', (array) $body['errors']);
         $this->assertSame('Exception', $body['errors']['debug']['class']);
         $this->assertSame('Test exception', $body['errors']['debug']['message']);
+        $this->assertArrayHasKey('file', $body['errors']['debug']);
+        $this->assertArrayHasKey('trace', $body['errors']['debug']);
+        $this->assertIsString($body['errors']['request_id']);
+        $this->assertNotEmpty($body['errors']['request_id']);
+        
+        putenv('APP_ENV=testing');
+        \App\Support\Logger::setRequestId(null);
+    }
+
+    public function test_api_500_production_hides_debug_info(): void
+    {
+        putenv('APP_ENV=production');
+        putenv('APP_DEBUG=true');
+        \App\Support\Logger::setRequestId('req-999');
+
+        /** @var \Intisari\Application $app */
+        $app = require __DIR__ . '/../../bootstrap/app.php';
+
+        $app->router()->get('/api/fail-prod', function () {
+            throw new \Exception('Secret db failure');
+        });
+
+        $_SERVER['REQUEST_URI'] = '/api/fail-prod';
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $request = new Request('GET', '/api/fail-prod');
+        $app->debug(true);
+        
+        $response = $app->handle($request);
+        $body = json_decode($response->content(), true);
+        
+        $this->assertSame(500, $response->status());
+        $this->assertArrayNotHasKey('debug', (array) $body['errors']);
+        $this->assertStringNotContainsString('Secret db failure', $response->content());
+        $this->assertIsString($body['errors']['request_id']);
+        $this->assertNotEmpty($body['errors']['request_id']);
+        
+        putenv('APP_ENV=testing');
+        \App\Support\Logger::setRequestId(null);
+    }
+
+    public function test_validation_exception_returns_422(): void
+    {
+        /** @var \Intisari\Application $app */
+        $app = require __DIR__ . '/../../bootstrap/app.php';
+
+        $app->router()->get('/api/val-fail', function () {
+            throw new \App\Exceptions\ApiValidationException(['field' => ['Bad field']]);
+        });
+
+        $_SERVER['REQUEST_URI'] = '/api/val-fail';
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $request = new Request('GET', '/api/val-fail');
+        
+        $response = $app->handle($request);
+        $body = json_decode($response->content(), true);
+        
+        $this->assertSame(422, $response->status());
+        $this->assertSame(['Bad field'], $body['errors']['field']);
     }
 }

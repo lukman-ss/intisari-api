@@ -52,4 +52,20 @@ abstract class TestCase extends BaseTestCase
         $runner = new MigrationRunner($this->pdo);
         $runner->run(dirname(__DIR__) . '/database/migrations');
     }
+
+    protected function tearDown(): void
+    {
+        $storagePath = dirname(__DIR__) . '/storage/framework/rate-limit';
+        if (is_dir($storagePath)) {
+            $files = glob($storagePath . '/*');
+            if (is_array($files)) {
+                foreach ($files as $file) {
+                    if (is_file($file)) {
+                        @unlink($file);
+                    }
+                }
+            }
+        }
+        parent::tearDown();
+    }
 }

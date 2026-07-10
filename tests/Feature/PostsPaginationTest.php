@@ -29,7 +29,7 @@ class PostsPaginationTest extends TestCase
              ->execute(['Demo User', 'demo@example.com', $hasher->hash('secret123'), 1]);
         
         $this->tokenService = $this->app->make(TokenService::class);
-        $tokenData = $this->tokenService->createToken(1, 'test');
+        $tokenData = $this->tokenService->createToken(1, 'test', ['posts.read']);
         $this->token = $tokenData['plain_token'];
 
         $this->postRepo = new PostRepository($this->pdo);

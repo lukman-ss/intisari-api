@@ -19,16 +19,18 @@ cd your-project-name
 
 ## Environment Setup
 
-Copy the example environment file and configure it:
+Copy the example environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Ensure the database file exists:
+**Important**: The default `.env.example` is secured for production. To run the API locally, open your `.env` file, comment out the production database and CORS settings, and uncomment the `LOCAL DEVELOPMENT OVERRIDES` section at the bottom.
+
+Ensure the local SQLite database file exists (if using local development overrides):
 
 ```bash
-touch database/database.sqlite
+touch database/api.sqlite
 ```
 
 *(Alternatively, you can run `make install` if you are on a Unix-based system to handle both setup steps.)*
@@ -113,11 +115,21 @@ composer source:check
 - `tests/`: Feature and Unit tests.
 - `scripts/`: Development and maintenance scripts.
 
-## Security Notes
+## Secure Deployment
 
-- This starter is designed to be lightweight. The rate limiting provided by `RateLimitMiddleware` uses a file-based lock and is suited for low-traffic or development environments. For high-traffic production environments, consider replacing it with a Redis-based rate limiter or handling rate limits at the reverse proxy (e.g., Nginx).
-- Always ensure `APP_DEBUG=false` in your `.env` when deploying to production to avoid exposing sensitive stack traces.
-- Application logs (`storage/logs/app.log`) automatically mask sensitive keys (`password`, `token`, `authorization`, `secret`).
+To ensure this API operates securely in a production environment, strictly adhere to the following baseline requirements. For complete details, see our [SECURITY.md](SECURITY.md).
+
+- **Environment Config**: Never commit `.env` to Git. Ensure `APP_DEBUG=false` to prevent sensitive stack trace leaks.
+- **HTTPS & Proxy**: Production traffic **must** run over HTTPS. If placed behind a reverse proxy (e.g., Nginx), ensure headers like `X-Forwarded-For` are trusted securely.
+- **Database Credentials**: MySQL/PostgreSQL require explicit, strong credentials. Do not fallback to root or empty passwords.
+- **CORS Allowlist**: Do not use `*` for `CORS_ALLOWED_ORIGINS` in production. Specify exact frontend domains explicitly.
+- **Rate Limiting**: The built-in file-based rate limiter is for low-traffic/local use. For production, switch to a robust Redis/Memcached backend or handle throttling at the reverse proxy.
+- **Token Least-Privilege**: Grant API tokens only the absolute minimum abilities required. Never default to wildcard (`*`) abilities for user-facing tokens.
+- **Storage Permissions**: Ensure that `storage/` and any SQLite database directories are writable by the web server but **never** accessible directly via the public web root.
+- **Composer Audit**: Regularly run `composer security:check` (which includes `composer audit --locked`) in your CI pipeline to catch vulnerable dependencies.
+- **Logging & Secrets**: Use the built-in redaction for sensitive keys (`password`, `token`, etc.) in `storage/logs/app.log`. Manage secrets using secure environment managers or vaults.
+- **Migrations**: Run `composer migrate` cautiously in production. Use `--force` mechanisms appropriately to prevent accidental destructive migrations.
+- **Backup**: Regularly back up your database and `.env` securely off-site.
 
 ## License
 

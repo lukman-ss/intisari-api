@@ -18,6 +18,7 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
         $response->header('X-Content-Type-Options', 'nosniff');
         $response->header('X-Frame-Options', 'DENY');
         $response->header('Referrer-Policy', 'no-referrer');
+        $response->header('Cache-Control', 'no-store, private');
         
         return $response;
     }

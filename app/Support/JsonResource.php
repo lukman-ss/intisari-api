@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+/**
+ * @phpstan-consistent-constructor
+ */
 abstract class JsonResource
 {
     protected array $resource;

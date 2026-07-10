@@ -51,10 +51,6 @@ class AuthManager
             return false;
         }
 
-        if (in_array('*', $abilities, true)) {
-            return true;
-        }
-
         return in_array($ability, $abilities, true);
     }
 }

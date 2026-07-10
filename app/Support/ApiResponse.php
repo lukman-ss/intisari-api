@@ -76,6 +76,14 @@ class ApiResponse
 
         $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        return new Response($encoded ?: '', $status, ['Content-Type' => 'application/json']);
+        $headers = [
+            'Content-Type' => ($format ?? 'default') === 'problem' ? 'application/problem+json' : 'application/json',
+            'X-Content-Type-Options' => 'nosniff',
+            'X-Frame-Options' => 'DENY',
+            'Referrer-Policy' => 'no-referrer',
+            'Cache-Control' => 'no-store, private'
+        ];
+
+        return new Response($encoded ?: '', $status, $headers);
     }
 }

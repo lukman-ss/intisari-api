@@ -20,7 +20,7 @@ class TokenService
         return hash($algo, $plain);
     }
 
-    public function createToken(int $userId, string $name = 'default', array $abilities = ['*']): array
+    public function createToken(int $userId, string $name = 'default', array $abilities = []): array
     {
         $plain = bin2hex(random_bytes(32)); // 64 chars
         $hash = $this->hashToken($plain);
@@ -38,11 +38,22 @@ class TokenService
             VALUES (:user_id, :name, :token_hash, :abilities, :expires_at)
         ");
 
+        $normalizedAbilities = [];
+        foreach ($abilities as $ability) {
+            if (!is_string($ability)) {
+                throw new \InvalidArgumentException('Abilities must be strings.');
+            }
+            $normalizedAbilities[] = $ability;
+        }
+        $normalizedAbilities = array_values(array_unique($normalizedAbilities));
+
+        $abilitiesJson = json_encode($normalizedAbilities, JSON_THROW_ON_ERROR);
+
         $stmt->execute([
             'user_id' => $userId,
             'name' => $name,
             'token_hash' => $hash,
-            'abilities' => json_encode($abilities),
+            'abilities' => $abilitiesJson,
             'expires_at' => $expiresAt
         ]);
 

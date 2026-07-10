@@ -37,10 +37,10 @@ class TokenManagementTest extends TestCase
             'password_hash' => 'hash2'
         ]);
         
-        $tokenData1 = $this->tokenService->createToken((int) $this->user1['id'], 'test-token-1', ['*']);
+        $tokenData1 = $this->tokenService->createToken((int) $this->user1['id'], 'test-token-1', ['tokens.read', 'tokens.create', 'tokens.revoke', 'posts.read']);
         $this->token1 = $tokenData1['plain_token'];
         
-        $tokenData2 = $this->tokenService->createToken((int) $this->user2['id'], 'test-token-2', ['*']);
+        $tokenData2 = $this->tokenService->createToken((int) $this->user2['id'], 'test-token-2', ['tokens.read', 'tokens.create', 'tokens.revoke', 'posts.read']);
         $this->token2 = $tokenData2['plain_token'];
     }
 
@@ -66,7 +66,7 @@ class TokenManagementTest extends TestCase
     {
         $payload = json_encode([
             'name' => 'mobile-app',
-            'abilities' => ['posts:read']
+            'abilities' => ['posts.read']
         ]);
         
         $request = new Request('POST', '/api/tokens', [], [], [

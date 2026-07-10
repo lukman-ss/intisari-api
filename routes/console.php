@@ -82,7 +82,7 @@ $app->command('migrate', function (Input $input, Output $output) use ($app) {
 
 $app->command('migrate:fresh', function (Input $input, Output $output) use ($app) {
     global $argv;
-    $force = in_array('--force', $argv ?? [], true);
+    $force = in_array('--force', $argv, true);
     
     if (!$force && getenv('APP_ENV') !== 'testing') {
         $output->writeln("ERROR: You must use --force to run migrate:fresh in non-testing environment.");

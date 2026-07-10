@@ -32,7 +32,7 @@ class SoftDeletePostsTest extends TestCase
             'password_hash' => 'hash'
         ]);
         
-        $tokenData = $tokenService->createToken((int) $this->user['id'], 'mobile');
+        $tokenData = $tokenService->createToken((int) $this->user['id'], 'mobile', ['posts.read', 'posts.delete']);
         $this->plainToken = $tokenData['plain_token'];
 
         $this->post = $this->postRepo->create([

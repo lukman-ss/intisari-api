@@ -36,7 +36,7 @@ class MigrationRunner
                 continue;
             }
 
-            $closure = require $file;
+            $closure = require $file; // @security-ignore: dynamic require is expected here for migration files
             if (!is_callable($closure)) {
                 throw new RuntimeException("Migration {$migrationName} must return a callable.");
             }

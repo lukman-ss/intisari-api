@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ "main", "master" ]
@@ -51,6 +54,9 @@ jobs:
 
     - name: Run Docs Check
       run: composer docs:check
+
+    - name: Run Security Check
+      run: composer security:check
 
     - name: Run Tests
       run: composer test

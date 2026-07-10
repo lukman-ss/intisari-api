@@ -31,11 +31,11 @@ class PostsApiTest extends TestCase
         $stmt->execute(['Demo User', 'demo@example.com', $hasher->hash('secret123'), 1]);
         
         $this->tokenService = $this->app->make(TokenService::class);
-        $tokenData = $this->tokenService->createToken(1, 'test');
+        $tokenData = $this->tokenService->createToken(1, 'test', ['posts.read', 'posts.create', 'posts.update', 'posts.delete']);
         $this->token = $tokenData['plain_token'];
 
         $stmt->execute(['Other User', 'other@example.com', $hasher->hash('secret123'), 1]);
-        $otherTokenData = $this->tokenService->createToken(2, 'test2');
+        $otherTokenData = $this->tokenService->createToken(2, 'test2', ['posts.read', 'posts.create', 'posts.update', 'posts.delete']);
         $this->otherToken = $otherTokenData['plain_token'];
 
         $this->postRepo = new PostRepository($this->pdo);
@@ -246,9 +246,9 @@ class PostsApiTest extends TestCase
         $request = new Request('PUT', '/api/posts/' . $post['id'], [], [], $headers, $payload);
         $response = $this->app->handle($request);
         
-        $this->assertSame(403, $response->status());
+        $this->assertSame(404, $response->status());
         $body = json_decode((string) $response->content(), true);
-        $this->assertSame('FORBIDDEN', $body['code']);
+        $this->assertSame('NOT_FOUND', $body['code']);
     }
 
     public function test_draft_inaccessible_by_non_owner(): void
@@ -270,7 +270,7 @@ class PostsApiTest extends TestCase
         $request = new Request('GET', '/api/posts/' . $post['id'], [], [], $headers, '');
         $response = $this->app->handle($request);
         
-        $this->assertSame(403, $response->status());
+        $this->assertSame(404, $response->status());
     }
 
     public function test_published_accessible_by_non_owner(): void

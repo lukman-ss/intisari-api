@@ -59,16 +59,16 @@ class RateLimitMiddlewareTest extends TestCase
         // First request
         $response1 = $middleware->process($request, $handler);
         $this->assertSame(200, $response1->status());
-        $headers1 = $response1->headers()->all();
-        $this->assertSame('2', $headers1['x-ratelimit-limit']);
-        $this->assertSame('1', $headers1['x-ratelimit-remaining']);
+        $this->assertSame('2', $response1->headers()->get('RateLimit-Limit'));
+        $this->assertSame('1', $response1->headers()->get('RateLimit-Remaining'));
+        $this->assertNotNull($response1->headers()->get('RateLimit-Reset'));
 
         // Second request
         $response2 = $middleware->process($request, $handler);
         $this->assertSame(200, $response2->status());
-        $headers2 = $response2->headers()->all();
-        $this->assertSame('2', $headers2['x-ratelimit-limit']);
-        $this->assertSame('0', $headers2['x-ratelimit-remaining']);
+        $this->assertSame('2', $response2->headers()->get('RateLimit-Limit'));
+        $this->assertSame('0', $response2->headers()->get('RateLimit-Remaining'));
+        $this->assertNotNull($response2->headers()->get('RateLimit-Reset'));
     }
 
     public function test_it_blocks_requests_over_limit_with_429(): void
@@ -90,11 +90,10 @@ class RateLimitMiddlewareTest extends TestCase
         $response2 = $middleware->process($request, $handler);
         
         $this->assertSame(429, $response2->status());
-        $headers2 = $response2->headers()->all();
-        
-        $this->assertSame('1', $headers2['x-ratelimit-limit']);
-        $this->assertSame('0', $headers2['x-ratelimit-remaining']);
-        $this->assertArrayHasKey('retry-after', $headers2);
+        $this->assertSame('1', $response2->headers()->get('RateLimit-Limit'));
+        $this->assertSame('0', $response2->headers()->get('RateLimit-Remaining'));
+        $this->assertNotNull($response2->headers()->get('RateLimit-Reset'));
+        $this->assertNotNull($response2->headers()->get('Retry-After'));
         
         $body = json_decode($response2->content(), true);
         $this->assertFalse($body['success']);
@@ -122,7 +121,8 @@ class RateLimitMiddlewareTest extends TestCase
         // Third request (should be allowed again)
         $response3 = $middleware->process($request, $handler);
         $this->assertSame(200, $response3->status());
-        $headers3 = $response3->headers()->all();
-        $this->assertSame('0', $headers3['x-ratelimit-remaining']); // Because limit is 1, remaining is 0
+        $this->assertSame('1', $response3->headers()->get('RateLimit-Limit'));
+        $this->assertSame('0', $response3->headers()->get('RateLimit-Remaining'));
+        $this->assertNotNull($response3->headers()->get('RateLimit-Reset'));
     }
 }

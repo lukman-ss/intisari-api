@@ -121,20 +121,20 @@ class PostRepositoryTest extends TestCase
         }
 
         // Test basic pagination
-        $result = $this->repository->paginate(1, 3);
+        $result = $this->repository->paginateForViewer(1, 1, 3);
         $this->assertCount(3, $result['items']);
         $this->assertSame(5, $result['meta']['total']);
         $this->assertSame(2, $result['meta']['last_page']);
         
         // Test status filter
-        $result = $this->repository->paginate(1, 10, ['status' => 'published']);
+        $result = $this->repository->paginateForViewer(1, 1, 10, ['status' => 'published']);
         $this->assertCount(2, $result['items']);
         
         // Test search filter
-        $result = $this->repository->paginate(1, 10, ['search' => 'APPLE']);
+        $result = $this->repository->paginateForViewer(1, 1, 10, ['search' => 'APPLE']);
         $this->assertCount(5, $result['items']);
         
-        $result = $this->repository->paginate(1, 10, ['search' => 'post 3']);
+        $result = $this->repository->paginateForViewer(1, 1, 10, ['search' => 'post 3']);
         $this->assertCount(1, $result['items']);
     }
 }

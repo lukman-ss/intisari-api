@@ -1,0 +1,10 @@
+/tests export-ignore
+/phpunit.xml export-ignore
+/phpstan.neon export-ignore
+/.github export-ignore
+/scripts export-ignore
+/database/*.sqlite export-ignore
+/database/*.sqlite-shm export-ignore
+/database/*.sqlite-wal export-ignore
+/storage/logs/*.log export-ignore
+/storage/framework/rate-limit/* export-ignore

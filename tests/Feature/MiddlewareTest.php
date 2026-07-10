@@ -11,6 +11,7 @@ class MiddlewareTest extends TestCase
 {
     public function test_options_health_returns_cors_headers(): void
     {
+        putenv('CORS_ALLOWED_ORIGINS=*');
         /** @var \Intisari\Application $app */
         $app = require __DIR__ . '/../../bootstrap/app.php';
 
@@ -28,6 +29,7 @@ class MiddlewareTest extends TestCase
         
         $this->assertContains('access-control-allow-origin: *', $headers);
         $this->assertContains('access-control-allow-methods: get, post, put, patch, delete, options', $headers);
+        putenv('CORS_ALLOWED_ORIGINS=');
     }
     
     public function test_api_health_returns_security_headers(): void

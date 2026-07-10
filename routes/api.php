@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-use Intisari\Routing\Router;
+/** @var \Lukman\Router\Router $router */
 use App\Support\ApiResponse;
-
-/** @var Router $router */
 
 $router->get('/', function () {
     return response()->json([

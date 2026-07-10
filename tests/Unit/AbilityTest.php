@@ -33,42 +33,33 @@ class AbilityTest extends TestCase
 
     public function test_can_returns_false_if_no_token(): void
     {
-        $this->assertFalse($this->authManager->can('posts:read'));
-    }
-
-    public function test_can_returns_true_for_wildcard(): void
-    {
-        $this->authManager->setToken(['abilities' => ['*']]);
-        
-        $this->assertTrue($this->authManager->can('posts:read'));
-        $this->assertTrue($this->authManager->can('posts:write'));
-        $this->assertTrue($this->authManager->can('anything'));
+        $this->assertFalse($this->authManager->can('posts.read'));
     }
 
     public function test_can_returns_true_if_ability_exists(): void
     {
-        $this->authManager->setToken(['abilities' => ['posts:read', 'posts:create']]);
+        $this->authManager->setToken(['abilities' => ['posts.read', 'posts.create']]);
         
-        $this->assertTrue($this->authManager->can('posts:read'));
-        $this->assertTrue($this->authManager->can('posts:create'));
+        $this->assertTrue($this->authManager->can('posts.read'));
+        $this->assertTrue($this->authManager->can('posts.create'));
     }
 
     public function test_can_returns_false_if_ability_missing(): void
     {
-        $this->authManager->setToken(['abilities' => ['posts:read']]);
+        $this->authManager->setToken(['abilities' => ['posts.read']]);
         
-        $this->assertFalse($this->authManager->can('posts:delete'));
+        $this->assertFalse($this->authManager->can('posts.delete'));
         $this->assertFalse($this->authManager->can('users:read'));
     }
 
     public function test_ability_middleware_passes_if_authorized(): void
     {
-        $this->authManager->setToken(['abilities' => ['posts:read']]);
+        $this->authManager->setToken(['abilities' => ['posts.read']]);
         
         $app = require dirname(__DIR__, 2) . '/bootstrap/app.php';
         $app->instance(AuthManager::class, $this->authManager);
         
-        $middleware = new AbilityMiddleware('posts:read');
+        $middleware = new AbilityMiddleware('posts.read');
         $request = new Request('GET', '/');
         
         $handler = $this->createMock(RequestHandlerInterface::class);
@@ -82,17 +73,17 @@ class AbilityTest extends TestCase
 
     public function test_ability_middleware_throws_forbidden_if_unauthorized(): void
     {
-        $this->authManager->setToken(['abilities' => ['posts:read']]);
+        $this->authManager->setToken(['abilities' => ['posts.read']]);
         
         $app = require dirname(__DIR__, 2) . '/bootstrap/app.php';
         $app->instance(AuthManager::class, $this->authManager);
         
-        $middleware = new AbilityMiddleware('posts:delete');
+        $middleware = new AbilityMiddleware('posts.delete');
         $request = new Request('DELETE', '/');
         $handler = $this->createMock(RequestHandlerInterface::class);
         
         $this->expectException(ForbiddenException::class);
-        $this->expectExceptionMessage('Missing required ability: posts:delete');
+        $this->expectExceptionMessage('Missing required ability: posts.delete');
 
         $middleware->process($request, $handler);
     }

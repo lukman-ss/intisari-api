@@ -39,10 +39,40 @@ class TokenController extends Controller
             'name' => ['required', 'string', 'max:255'],
         ]);
         
-        $abilities = ['*'];
-        if (isset($input['abilities']) && is_array($input['abilities'])) {
-            $abilities = $input['abilities'];
+        if (!isset($input['abilities'])) {
+            throw new \App\Exceptions\ApiValidationException(['abilities' => ['The abilities field is required.']]);
         }
+        
+        $abilitiesInput = $input['abilities'];
+        if (!is_array($abilitiesInput) || !array_is_list($abilitiesInput)) {
+            throw new \App\Exceptions\ApiValidationException(['abilities' => ['The abilities field must be a valid array (not an object).']]);
+        }
+        
+        if (count($abilitiesInput) > 50) {
+            throw new \App\Exceptions\ApiValidationException(['abilities' => ['Too many abilities requested.']]);
+        }
+
+        $abilities = [];
+        $catalog = \App\Support\AbilityCatalog::all();
+
+        foreach ($abilitiesInput as $index => $ability) {
+            if (!is_string($ability)) {
+                throw new \App\Exceptions\ApiValidationException(['abilities' => ["Ability at index {$index} must be a string."]]);
+            }
+            if ($ability === '*') {
+                throw new \App\Exceptions\ApiValidationException(['abilities' => ["The '*' ability is not allowed for regular users."]]);
+            }
+            if (!in_array($ability, $catalog, true)) {
+                throw new \App\Exceptions\ApiValidationException(['abilities' => ["Unknown ability: {$ability}"]]);
+            }
+            $authManager = app(\App\Support\AuthManager::class);
+            if (!$authManager->can($ability)) {
+                throw new \App\Exceptions\ApiValidationException(['abilities' => ["Cannot grant ability you do not have: {$ability}"]]);
+            }
+            $abilities[] = $ability;
+        }
+        
+        $abilities = array_values(array_unique($abilities));
         
         $tokenData = $tokenService->createToken((int) $user['id'], $validated['name'], $abilities);
         

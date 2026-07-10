@@ -36,16 +36,29 @@ class AuthController extends Controller
         $email = strtolower($validated['email']);
 
         if ($userRepository->findByEmail($email)) {
-            throw new ApiValidationException(['email' => ['The email has already been taken.']]);
+            $logger = new \App\Support\Logger();
+            $logger->warning('Registration failed: email exists', ['email' => $email]);
+            return $this->error('Registration could not be completed.', 400);
         }
 
-        $user = $userRepository->create([
-            'name' => $validated['name'],
-            'email' => $email,
-            'password_hash' => $hasher->hash($validated['password']),
-        ]);
+        try {
+            $user = $userRepository->create([
+                'name' => $validated['name'],
+                'email' => $email,
+                'password_hash' => $hasher->hash($validated['password']),
+            ]);
+        } catch (\PDOException $e) {
+            // Handle unique constraint violations gracefully
+            if ((string)$e->getCode() === '23000' || $e->getCode() == 1062 || $e->getCode() == 19) {
+                $logger = new \App\Support\Logger();
+                $logger->warning('Registration failed: unique constraint', ['email' => $email]);
+                return $this->error('Registration could not be completed.', 400);
+            }
+            throw $e;
+        }
 
-        $tokenData = $tokenService->createToken((int) $user['id'], 'register');
+        $abilities = \App\Support\AbilityCatalog::all();
+        $tokenData = $tokenService->createToken((int) $user['id'], 'register', $abilities);
 
         return $this->success([
             'user' => UserResource::make($user),
@@ -69,14 +82,25 @@ class AuthController extends Controller
 
         $email = strtolower($validated['email']);
         $user = $userRepository->findByEmail($email);
+        
+        $verified = false;
+        if ($user) {
+            $verified = $hasher->verify($validated['password'], (string) $user['password_hash']);
+        } else {
+            // Mitigate timing attacks by verifying a dummy hash
+            // This ensures login always takes roughly the same time even if email is not found
+            $hasher->verify($validated['password'], '$2y$10$abcdefghijklmnopqrstuv');
+        }
 
-        if (!$user || !(int) $user['is_active'] || !$hasher->verify($validated['password'], $user['password_hash'])) {
+        if (!$user || !(int) $user['is_active'] || !$verified) {
             $logger = new \App\Support\Logger();
-            $logger->warning('Failed login attempt', ['email' => $email]);
+            $reason = !$user ? 'email not found' : (!(int) $user['is_active'] ? 'user inactive' : 'wrong password');
+            $logger->warning("Failed login attempt: {$reason}", ['email' => $email]);
             return $this->error('Invalid credentials', 401);
         }
 
-        $tokenData = $tokenService->createToken((int) $user['id'], 'login');
+        $abilities = \App\Support\AbilityCatalog::all();
+        $tokenData = $tokenService->createToken((int) $user['id'], 'login', $abilities);
 
         return $this->success([
             'user' => UserResource::make($user),
@@ -121,12 +145,35 @@ class AuthController extends Controller
         $authHeader = $request->header('Authorization', '');
         $oldPlainToken = substr($authHeader, 7);
         
-        // Revoke the old token
-        $tokenService->revokeToken($oldPlainToken);
+        // Revoke the old token (returns false if already revoked, preventing race conditions)
+        $revoked = $tokenService->revokeToken($oldPlainToken);
+        if (!$revoked) {
+            return $this->error('Token already revoked', 401);
+        }
         
-        // Create new token with same name and abilities
         $name = $oldTokenData['name'] ?? 'refresh';
-        $abilities = $oldTokenData['abilities'] ?? ['*'];
+        $oldAbilities = $oldTokenData['abilities'] ?? [];
+        $abilities = $oldAbilities;
+        
+        $input = $this->input($request);
+        if (isset($input['abilities'])) {
+            $requestedAbilities = $input['abilities'];
+            if (!is_array($requestedAbilities) || !array_is_list($requestedAbilities)) {
+                throw new ApiValidationException(['abilities' => ['The abilities field must be a valid array.']]);
+            }
+            
+            $abilities = [];
+            foreach ($requestedAbilities as $index => $ability) {
+                if (!is_string($ability)) {
+                    throw new ApiValidationException(['abilities' => ["Ability at index {$index} must be a string."]]);
+                }
+                if (!in_array($ability, $oldAbilities, true)) {
+                    throw new ApiValidationException(['abilities' => ["Cannot request ability you do not have: {$ability}"]]);
+                }
+                $abilities[] = $ability;
+            }
+            $abilities = array_values(array_unique($abilities));
+        }
         
         $newTokenData = $tokenService->createToken((int) $user['id'], $name, $abilities);
         

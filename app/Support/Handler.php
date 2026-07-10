@@ -51,11 +51,23 @@ class Handler extends ExceptionHandler
         }
 
         $errors = [];
-        if ($this->debug) {
+        $env = getenv('APP_ENV') ?: 'production';
+        $debug = filter_var(getenv('APP_DEBUG'), FILTER_VALIDATE_BOOLEAN);
+        $isLocalDebug = $env === 'local' && $debug === true;
+
+        if ($isLocalDebug) {
             $errors['debug'] = [
                 'class' => get_class($e),
                 'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => explode("\n", $e->getTraceAsString()),
             ];
+        }
+
+        $requestId = \App\Support\Logger::getRequestId();
+        if ($requestId) {
+            $errors['request_id'] = $requestId;
         }
 
         if ($status === 500) {

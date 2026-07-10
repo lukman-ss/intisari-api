@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v0.2.0] — 2026-07-10 (Security Release)
+
+### Security
+- **Draft visibility diperbaiki**: Mencegah kebocoran data. Permintaan ke `GET /api/posts?status=draft` oleh pengguna anonim (tamu) kini secara tegas ditolak dengan `401 Unauthorized`.
+- **Token abilities diperketat**: Pembuatan token standar (login & register) tidak lagi memberikan wildcard `["*"]`. Token baru hanya diberikan subset *least privilege* sesuai katalog yang terdaftar.
+- **Legacy Token Revocation**: Seluruh token lawas yang memiliki abilities `["*"]` telah **dicabut permanen** melalui database migration `20260710100000_revoke_legacy_wildcard_tokens.php`.
+- **APP_DEBUG default dinonaktifkan**: Pengaturan bawaan diwajibkan `false` untuk mencegah kebocoran jejak *stack-trace* sensitif dalam respons error JSON ke publik.
+- **CORS default diperketat**: Header CORS tidak akan direfleksikan secara liar; wildcard origin `*` kini dibatasi ketat dan skema pencocokan (*exact match*) diberlakukan.
+- **Oversized payload protection**: Pembatasan ukuran maksimum JSON body ditambahkan untuk menangkis serangan kehabisan memori, kini mengembalikan `413 Payload Too Large`.
+- **Security Headers Middleware**: `Cache-Control: no-store, private`, `X-Content-Type-Options`, `X-Frame-Options`, dan `Referrer-Policy` sekarang terpasang secara intrinsik di dalam `ApiResponse::build()`, memastikan seluruh respons *error* sensitif turut dilindungi tanpa di-cache publik.
+
+### Changed
+- **MySQL insecure fallback dihapus**: Kegagalan menyediakan konfigurasi `DB_USERNAME` dan `DB_PASSWORD` secara eksplisit sekarang akan memicu *fatal configuration error* alih-alih merosot (*fallback*) ke nilai 'root' dan kata sandi kosong.
+
+### Added
+- **Auth throttling ditambahkan**: Rute login dan pendaftaran kini dilindungi oleh batasan laju (*rate limiter*) ketat demi menahan pencacahan sandi dan *brute-force*.
+- **DAST Smoke Test**: Ditambahkan skrip `scripts/dast_smoke.php` untuk menguji kerentanan API (throttling, CORS, oversized payload, dsb) secara dinamis di lingkungan paska-*deploy*.
+
+### Breaking Changes (Backward Compatibility Notes)
+- Kontrak respons *API (JSON Envelope, Pagination, Validation Format, Login/Register Success)* **tidak berubah** (100% kompatibel secara struktural).
+- **Perubahan Perilaku (Behavioral Breaks):**
+  - Klien yang mengandalkan sesi API lama dengan atribut `["*"]` akan seketika menerima `401 Unauthorized` karena seluruh token warisan tersebut telah dihanguskan.
+  - Skrip pengujian atau klien lama yang mengirimkan *payload* ekstrem melampaui batas wajar JSON parser kini akan mementahkan *request* dengan `413` dan bukan `500`.
+  - Akses `OPTIONS` dari *origin* tak terdaftar tidak akan lagi disetujui (CORS diperketat).
+
+### Migration Notes
+- **Admin / Operator**: Jalankan perintah `composer migrate` untuk menghapus token legacy secara rahasia. **PENTING:** Ini akan memaksa semua klien lama untuk **login ulang**. Strategi migrasi ini sengaja dipilih tanpa *compatibility bypass* karena mencoba merekonstruksi ulang hak khusus *super-admin* dari token *wildcard* tanpa izin pengguna justru dapat menghidupkan kembali kerentanan (*vulnerability*) privilese berlebih. Jangan berikan akses lewat belakang (*backdoor*).
+
+---
+
 ## [v0.1.1] — 2026-07-09
 
 ### Fixed

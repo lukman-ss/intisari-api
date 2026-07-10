@@ -97,9 +97,75 @@ class AuthRegisterTest extends TestCase
         // Second register
         $response = $this->app->handle(new Request('POST', '/api/auth/register', [], [], [], json_encode($payload)));
         
-        $this->assertSame(422, $response->status());
+        $this->assertSame(400, $response->status());
         $body = json_decode((string) $response->content(), true);
-        $this->assertArrayHasKey('email', $body['errors']);
-        $this->assertStringContainsString('already been taken', $body['errors']['email'][0]);
+        
+        // Ensure generic message, no leaking of taken, exists, user ID, SQL, or table name
+        $jsonBody = json_encode($body);
+        $this->assertStringNotContainsStringIgnoringCase('taken', $jsonBody);
+        $this->assertStringNotContainsStringIgnoringCase('exists', $jsonBody);
+        $this->assertStringNotContainsStringIgnoringCase('SQL', $jsonBody);
+        $this->assertStringNotContainsStringIgnoringCase('users', $jsonBody);
+        $this->assertFalse($body['success']);
+        $this->assertSame('Registration could not be completed.', $body['message']);
+        
+        // Note: Full elimination of enumeration requires email verification flow.
+    }
+
+    public function test_it_rejects_duplicate_email_different_case(): void
+    {
+        $payload1 = [
+            'name' => 'Demo User',
+            'email' => 'Case@Example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123'
+        ];
+
+        $payload2 = [
+            'name' => 'Demo User',
+            'email' => 'case@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123'
+        ];
+
+        $this->app->handle(new Request('POST', '/api/auth/register', [], [], [], json_encode($payload1)));
+        $response = $this->app->handle(new Request('POST', '/api/auth/register', [], [], [], json_encode($payload2)));
+
+        $this->assertSame(400, $response->status());
+        $body = json_decode((string) $response->content(), true);
+        $this->assertSame('Registration could not be completed.', $body['message']);
+    }
+
+    public function test_race_condition_unique_constraint_violation(): void
+    {
+        $payload = [
+            'name' => 'Race Condition',
+            'email' => 'race@example.com',
+            'password' => 'secret123',
+            'password_confirmation' => 'secret123'
+        ];
+
+        // Insert directly to bypass findByEmail check inside register logic
+        $userRepo = app(\App\Repositories\UserRepository::class);
+        $userRepo->create([
+            'name' => 'Race Condition',
+            'email' => 'race@example.com',
+            'password_hash' => 'hash'
+        ]);
+
+        // Attempting to register via API should fail at the PDO level during insert
+        // To really test PDO exception, we would mock UserRepository
+        $mockRepo = $this->createMock(\App\Repositories\UserRepository::class);
+        $mockRepo->method('findByEmail')->willReturn(null);
+        $mockRepo->method('create')->willThrowException(new \PDOException('Unique constraint failed', 23000));
+        
+        // Replace in container
+        $this->app->singleton(\App\Repositories\UserRepository::class, fn() => $mockRepo);
+
+        $response = $this->app->handle(new Request('POST', '/api/auth/register', [], [], [], json_encode($payload)));
+
+        $this->assertSame(400, $response->status());
+        $body = json_decode((string) $response->content(), true);
+        $this->assertSame('Registration could not be completed.', $body['message']);
     }
 }

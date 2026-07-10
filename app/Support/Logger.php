@@ -13,9 +13,15 @@ class Logger
         'token', 
         'authorization', 
         'secret',
-        'api_key'
+        'api_key',
+        'cookie'
     ];
     private static ?string $requestId = null;
+
+    public static function getRequestId(): ?string
+    {
+        return self::$requestId;
+    }
 
     public static function setRequestId(?string $requestId): void
     {

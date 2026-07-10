@@ -12,7 +12,7 @@ class PostRepository
     {
     }
 
-    public function paginate(int $page = 1, int $perPage = 15, array $filters = []): array
+    public function paginateForViewer(int $viewerId, int $page = 1, int $perPage = 15, array $filters = []): array
     {
         $page = max(1, $page);
         $perPage = max(1, min(100, $perPage));
@@ -21,6 +21,9 @@ class PostRepository
         
         $whereConditions = ["deleted_at IS NULL"];
         $params = [];
+        
+        $whereConditions[] = "(status = 'published' OR user_id = ?)";
+        $params[] = $viewerId;
         
         if (isset($filters['status']) && $filters['status'] !== '') {
             $whereConditions[] = "status = ?";
@@ -34,7 +37,7 @@ class PostRepository
             $params[] = $search;
         }
         
-        $whereSql = empty($whereConditions) ? "" : "WHERE " . implode(" AND ", $whereConditions);
+        $whereSql = "WHERE " . implode(" AND ", $whereConditions);
         
         // Count total items
         $countSql = "SELECT COUNT(*) FROM posts $whereSql";
@@ -143,9 +146,7 @@ class PostRepository
             }
         }
         
-        if (empty($updates)) {
-            return $post;
-        }
+        // $updates is guaranteed to have at least 'updated_at'
         
         $params['id'] = $id;
         $setSql = implode(', ', $updates);
